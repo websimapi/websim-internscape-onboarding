@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InternScape Onboarding</title>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Shadows+Into+Light&family=Fira+Code:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="logo">InternScape HR</div>
+            <h1>Employee Onboarding Form v1.4</h1>
+        </header>
+        
+        <main class="main-content">
+            <aside class="sidebar left-sidebar">
+                <nav class="tabs">
+                    <button class="tab active" data-tab="frame">Frame (Identity)</button>
+                    <button class="tab" data-tab="hair">Head / Hair</button>
+                    <button class="tab" data-tab="top">Top (Shirt)</button>
+                    <button class="tab" data-tab="hands">Hands (Gloves)</button>
+                    <button class="tab" data-tab="bottom">Bottom (Pants)</button>
+                    <button class="tab" data-tab="shoes">Footwear</button>
+                </nav>
+            </aside>
+
+            <section class="canvas-container">
+                <div id="three-canvas"></div>
+                <div class="canvas-overlay">
+                    <p>Rotate: Left Click + Drag | Zoom: Scroll</p>
+                </div>
+            </section>
+
+            <aside class="sidebar right-sidebar">
+                <div class="options-container" id="options-grid">
+                    <!-- Options populated by JS -->
+                </div>
+
+                <div class="color-section">
+                    <h3>Material Color Assignment</h3>
+                    <div class="color-grid" id="color-grid">
+                        <!-- Colors populated by JS -->
+                    </div>
+                    <div class="custom-color">
+                        <label for="color-picker">Custom Hex:</label>
+                        <input type="color" id="color-picker" value="#ffffff">
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <footer class="footer">
+            <button class="sign-btn" id="sign-btn">Sign Contract (Complete)</button>
+        </footer>
+
+        <div id="game-ui">
+            <button id="skills-btn" class="ui-btn">📋 My Notes (Skills)</button>
+            
+            <div id="notepad-modal" class="notepad hidden">
+                <div class="spiral"></div>
+                <div class="notepad-content">
+                    <h2 class="notepad-title">Internship Skills</h2>
+                    <ul id="skills-list">
+                        <!-- populated by js -->
+                    </ul>
+                    <button id="practice-writing-btn">Practice Penmanship</button>
+                    <button id="close-notepad-btn">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Map for Three.js (No bundler required) -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://esm.sh/three@0.160.0",
+                "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="main.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
