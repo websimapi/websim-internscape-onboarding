@@ -46,6 +46,19 @@ const corporatePalette = [
 let scene, camera, renderer, controls, character;
 let currentCategory = 'frame';
 let clock = new THREE.Clock();
+let inGame = false;
+
+const worldBlocks = [];
+const worldGroup = new THREE.Group();
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+let skills = {
+    penmanship: 1,
+    actionItemExecution: 1,
+    liabilityMitigation: 1,
+    synergy: 1
+};
 
 function init() {
     const container = document.getElementById('three-canvas');
@@ -90,8 +103,112 @@ function init() {
     character = new InternCharacter(scene);
 
     window.addEventListener('resize', onWindowResize);
+    window.addEventListener('pointerdown', onPointerDown);
     setupUI();
     renderer.setAnimationLoop(animate);
+}
+
+function onPointerDown(e) {
+    if (!inGame) return;
+    if (e.target.closest('#game-ui')) return; // Ignore UI clicks
+
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(worldBlocks);
+
+    if (intersects.length > 0) {
+        const point = intersects[0].point;
+        character.targetPosition.copy(point);
+        character.targetPosition.y = 1.4; // floor height offset
+        character.isMoving = true;
+        
+        spawnClickMarker(point);
+    }
+}
+
+function spawnClickMarker(pos) {
+    const marker = new THREE.Mesh(
+        new THREE.RingGeometry(0.2, 0.3, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+    );
+    marker.rotation.x = -Math.PI / 2;
+    marker.position.copy(pos);
+    marker.position.y += 0.05; 
+    scene.add(marker);
+
+    let scale = 1;
+    const animateMarker = () => {
+        scale += 0.05;
+        marker.scale.setScalar(scale);
+        marker.material.opacity -= 0.05;
+        if (marker.material.opacity <= 0) {
+            scene.remove(marker);
+            marker.geometry.dispose();
+            marker.material.dispose();
+        } else {
+            requestAnimationFrame(animateMarker);
+        }
+    };
+    animateMarker();
+}
+
+function generateWorld() {
+    scene.add(worldGroup);
+    
+    const blockSize = 1;
+    const radius = 12; // Base tutorial region
+
+    const matCorp = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.9, flatShading: true });
+    const matFant = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 1.0, flatShading: true });
+    const matSynth = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5, metalness: 0.5, flatShading: true });
+
+    const geo = new THREE.BoxGeometry(blockSize, blockSize, blockSize);
+
+    // Inner playable chunk
+    for (let x = -radius; x <= radius; x++) {
+        for (let z = -radius; z <= radius; z++) {
+            if (x*x + z*z > radius*radius) continue;
+
+            let mat = matCorp;
+            if (x < 0 && z > 0) mat = matFant;
+            if (x > 0 && z > 0) mat = matSynth;
+
+            let y = 0;
+            if (Math.random() < 0.05) y = 1; 
+
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x * blockSize, y * blockSize - 0.5, z * blockSize);
+            mesh.receiveShadow = true;
+            mesh.castShadow = true;
+            worldGroup.add(mesh);
+            worldBlocks.push(mesh);
+        }
+    }
+
+    // Unreachable distant chunks (The "World")
+    for (let i = 0; i < 40; i++) {
+        const dist = radius + 4 + Math.random() * 15;
+        const angle = Math.random() * Math.PI * 2;
+        const cx = Math.cos(angle) * dist;
+        const cz = Math.sin(angle) * dist;
+        
+        const chunkRadius = 1 + Math.random() * 3;
+        const chunkMat = Math.random() > 0.6 ? matFant : (Math.random() > 0.5 ? matSynth : matCorp);
+        
+        for (let x = -chunkRadius; x <= chunkRadius; x++) {
+            for (let z = -chunkRadius; z <= chunkRadius; z++) {
+                if (x*x + z*z > chunkRadius*chunkRadius) continue;
+                const mesh = new THREE.Mesh(geo, chunkMat);
+                mesh.position.set(Math.round(cx + x), -0.5 + Math.floor(Math.random() * 2), Math.round(cz + z));
+                mesh.receiveShadow = true;
+                mesh.castShadow = true;
+                worldGroup.add(mesh);
+            }
+        }
+    }
 }
 
 function createOfficeChair() {
@@ -169,13 +286,96 @@ function setupUI() {
             <div class="modal">
                 <h2>Contract Signed!</h2>
                 <p>Welcome to InternScape. Your Day 1 orientation begins shortly. Don't forget to track your hours to avoid burnout.</p>
-                <button onclick="this.parentElement.parentElement.remove()">Acknowledge</button>
+                <button id="start-game-btn">Enter World</button>
             </div>
         `;
         document.body.appendChild(overlay);
+
+        document.getElementById('start-game-btn').addEventListener('click', () => {
+            overlay.remove();
+            startGame();
+        });
+    });
+
+    // Game UI events
+    document.getElementById('skills-btn').addEventListener('click', () => {
+        document.getElementById('notepad-modal').classList.remove('hidden');
+        updateSkillsUI();
+    });
+
+    document.getElementById('close-notepad-btn').addEventListener('click', () => {
+        document.getElementById('notepad-modal').classList.add('hidden');
+    });
+
+    document.getElementById('practice-writing-btn').addEventListener('click', () => {
+        if (skills.penmanship < 4) {
+            skills.penmanship++;
+            updateSkillsUI();
+        } else {
+            alert("Your penmanship is already fully optimized for synergy.");
+        }
     });
 
     renderOptions();
+}
+
+function startGame() {
+    inGame = true;
+    
+    // Hide Onboarding UI
+    document.querySelector('.header').style.display = 'none';
+    document.querySelector('.sidebar.left-sidebar').style.display = 'none';
+    document.querySelector('.sidebar.right-sidebar').style.display = 'none';
+    document.querySelector('.footer').style.display = 'none';
+    document.querySelector('.canvas-overlay').style.display = 'none';
+    document.querySelector('.canvas-container').style.boxShadow = 'none';
+    
+    // Adjust layout for full screen canvas
+    const mainContent = document.querySelector('.main-content');
+    mainContent.style.flexDirection = 'row';
+
+    // Show game UI
+    document.getElementById('game-ui').style.display = 'block';
+
+    if (scene.userData.chair) scene.remove(scene.userData.chair);
+    
+    // Reset character
+    character.group.position.set(0, 1.4, 0);
+    character.group.rotation.y = 0;
+    
+    // Set up Game Camera (Isometric/Top-Down feel)
+    camera.position.set(10, 15, 10);
+    controls.maxPolarAngle = Math.PI / 2.5; 
+    controls.minDistance = 5;
+    controls.maxDistance = 25;
+    
+    generateWorld();
+    updateSkillsUI();
+    onWindowResize();
+}
+
+function updateSkillsUI() {
+    const list = document.getElementById('skills-list');
+    list.innerHTML = '';
+    
+    const skillNames = {
+        penmanship: "Penmanship (UI Skill)",
+        actionItemExecution: "Action Item Execution",
+        liabilityMitigation: "Liability Mitigation",
+        synergy: "Synergy Optimization"
+    };
+
+    let hwClass = `hw-lvl-${skills.penmanship}`;
+    
+    document.querySelector('.notepad-title').className = `notepad-title ${hwClass}`;
+
+    for (let key in skills) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${skillNames[key]}</span> <span>Lvl ${skills[key]}</span>`;
+        list.appendChild(li);
+    }
+    
+    list.className = hwClass;
 }
 
 function renderOptions() {
@@ -232,7 +432,12 @@ function onWindowResize() {
 function animate() {
     const dt = clock.getDelta();
     if (character) character.update(dt);
-    if (scene.userData.chair) scene.userData.chair.rotation.y = Math.sin(clock.getElapsedTime() * 0.3) * 0.15;
+    
+    if (inGame) {
+        controls.target.copy(character.group.position);
+    } else {
+        if (scene.userData.chair) scene.userData.chair.rotation.y = Math.sin(clock.getElapsedTime() * 0.3) * 0.15;
+    }
 
     controls.update();
     renderer.render(scene, camera);

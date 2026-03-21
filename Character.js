@@ -32,6 +32,10 @@ export class InternCharacter {
     this.currentAnim = 'idle';
     this.animTimer = 0;
 
+    this.isMoving = false;
+    this.targetPosition = new THREE.Vector3();
+    this.moveSpeed = 6.0;
+
     this.buildRig();
     this.updateMesh();
   }
@@ -214,6 +218,7 @@ export class InternCharacter {
   }
 
   playAnimation(name) {
+    if (this.currentAnim === name) return;
     this.currentAnim = name;
     this.animTimer = 0;
     
@@ -230,6 +235,30 @@ export class InternCharacter {
   update(dt) {
     this.animTime += dt;
     this.animTimer += dt;
+
+    if (this.isMoving) {
+      this.playAnimation('walk');
+      const direction = new THREE.Vector3().subVectors(this.targetPosition, this.group.position);
+      direction.y = 0;
+      const dist = direction.length();
+
+      if (dist < 0.1) {
+          this.isMoving = false;
+          this.group.position.set(this.targetPosition.x, this.group.position.y, this.targetPosition.z);
+          this.playAnimation('idle');
+      } else {
+          direction.normalize();
+          this.group.position.addScaledVector(direction, this.moveSpeed * dt);
+          // Simple rotation towards target
+          const targetRotation = Math.atan2(direction.x, direction.z);
+          
+          // Smooth rotation
+          let diff = targetRotation - this.group.rotation.y;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          this.group.rotation.y += diff * 10 * dt;
+      }
+    }
 
     if (this.currentAnim === 'idle') {
       // Impatient Breathing
@@ -273,6 +302,14 @@ export class InternCharacter {
         this.group.position.x = 0;
         this.playAnimation('idle');
       }
+    }
+    else if (this.currentAnim === 'walk') {
+      const walkCycle = this.animTime * 12;
+      this.rig.legL.rotation.x = Math.sin(walkCycle) * 0.6;
+      this.rig.legR.rotation.x = Math.sin(walkCycle + Math.PI) * 0.6;
+      this.rig.armL.rotation.x = Math.sin(walkCycle + Math.PI) * 0.6;
+      this.rig.armR.rotation.x = Math.sin(walkCycle) * 0.6;
+      this.group.position.y = 1.4 + Math.abs(Math.sin(walkCycle * 2)) * 0.1;
     }
   }
 
